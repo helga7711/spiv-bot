@@ -189,6 +189,9 @@ def main():
 
     print("✅ SPIV Bot запущений!")
     print("Команди: /prestart /weekly /zoom")
+    import asyncio
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     app.run_polling(allowed_updates=Update.ALL_TYPES)
 
 
