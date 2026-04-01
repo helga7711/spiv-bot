@@ -9,7 +9,7 @@ from html import escape
 import re
 
 EXCEL_FILE = "ANIMA_Gantt__1_.xlsx"
-PROJECT_END = date(2026, 6, 1)
+PROJECT_END = date(2026, 6, 11)
 BOT_START = date(2026, 3, 30)
 
 # Зустрічі для яких НЕ надсилаємо окремих нагадувань (тільки в дайджесті)
@@ -148,7 +148,7 @@ def build_digest(tasks_df, meetings_df, week_num, week_start, week_end):
                 tags_str = " ".join(tags_from_owners(r["Owner"]))
                 lines.append(f"📍 {h(r['Activities'])}")
                 if tags_str: lines.append(f"👤 {tags_str}")
-                lines.append(f"📅 {fmt_long(r['Start Date'])}")
+                lines.append(f"📅 {fmt_long(r['Start Date'])} о 15:00")
                 lines.append("")
 
         lines.append("━━━━━━━━━━━━━━━━━━")
@@ -207,10 +207,11 @@ def build_reminder(meeting_row, days_before):
     meet_type = "🏠 Внутрішня" if meeting_row["Type"] == "Внутрішня" else "🤝 Зовнішня"
     hints = get_hints(str(meeting_row["Activities"]))
 
+    time_str = " о 15:00" if meeting_row["Type"] == "Зовнішня" else ""
     lines = [f"⚠️ {label}", "",
         f"📍 {h(meeting_row['Activities'])}",
         f"{meet_type}",
-        f"📅 {fmt_long(meeting_row['Start Date'])}",
+        f"📅 {fmt_long(meeting_row['Start Date'])}{time_str}",
     ]
     if tags_str: lines.append(f"👤 {tags_str}")
     if hints:
@@ -248,7 +249,7 @@ def main():
     # Дайджести від 30.03
     week_num = 2
     d = BOT_START
-    end = date(2026, 6, 1)
+    end = date(2026, 6, 8)
     while d <= end:
         week_end = d + timedelta(days=6)
         all_events.append({
@@ -290,6 +291,14 @@ def main():
                 "row": row, "days_before": real_days_before,
             })
 
+    # Прощальне повідомлення — після останньої зустрічі 11.06
+    all_events.append({
+        "send_at": "11.06 о 15:05",
+        "sort_key": (date(2026, 6, 11), 15),
+        "type": "ПРОЩАННЯ",
+        "row": None, "days_before": None,
+    })
+
     all_events.sort(key=lambda x: x["sort_key"])
 
     sep = "=" * 60
@@ -299,6 +308,8 @@ def main():
         print(sep)
         if ev["type"] == "ДАЙДЖЕСТ":
             msg = build_digest(tasks_df, meetings_df, ev["week_num"], ev["week_start"], ev["week_end"])
+        elif ev["type"] == "ПРОЩАННЯ":
+            msg = "🎉 Ми це зробили!\nВітаю вас, моя реально-фізична команда SPIV 🙌\n\nБув радий служити вам,\nваш Spiv Anima Bot 🤖\n\nСамознищення через 3... 2... 1... 💥"
         else:
             msg = build_reminder(ev["row"], ev["days_before"])
         print(re.sub(r'<[^>]+>', '', msg))

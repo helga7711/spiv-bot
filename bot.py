@@ -22,7 +22,7 @@ from config import BOT_TOKEN, CHAT_ID, THREAD_ID, TEAM_HANDLES, EXCEL_FILE
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger(__name__)
 
-PROJECT_END = date(2026, 6, 1)
+PROJECT_END = date(2026, 6, 11)
 BOT_START = date(2026, 3, 30)
 FIRST_WEEK_NUM = 2
 
@@ -163,7 +163,8 @@ def build_digest(tasks_df, meetings_df, week_start, week_end):
                 tags_str = " ".join(tags_from_owners(r["Owner"]))
                 lines.append(f"📍 {h(r['Activities'])}")
                 if tags_str: lines.append(f"👤 {tags_str}")
-                lines.append(f"📅 <code>{fmt_long(r['Start Date'])}</code>")
+                time_str = " о 15:00" if r["Type"] == "Зовнішня" else ""
+                lines.append(f"📅 <code>{fmt_long(r['Start Date'])}{time_str}</code>")
                 lines.append("")
 
         if not external.empty:
@@ -172,7 +173,8 @@ def build_digest(tasks_df, meetings_df, week_start, week_end):
                 tags_str = " ".join(tags_from_owners(r["Owner"]))
                 lines.append(f"📍 {h(r['Activities'])}")
                 if tags_str: lines.append(f"👤 {tags_str}")
-                lines.append(f"📅 <code>{fmt_long(r['Start Date'])}</code>")
+                time_str = " о 15:00" if r["Type"] == "Зовнішня" else ""
+                lines.append(f"📅 <code>{fmt_long(r['Start Date'])}{time_str}</code>")
                 lines.append("")
 
         lines.append("━━━━━━━━━━━━━━━━━━")
@@ -201,18 +203,7 @@ def build_digest(tasks_df, meetings_df, week_start, week_end):
     lines.append("")
     lines.append("━━━━━━━━━━━━━━━━━━")
 
-    if wl == 0:
-        lines.append("<i>Проєкт ANIMA · SPIV studio</i>")
-        lines.append("")
-        lines.append("🎉 <b>Ми це зробили!</b>")
-        lines.append("Вітаю вас, моя реально-фізична команда SPIV 🙌")
-        lines.append("")
-        lines.append("Був радий служити вам,")
-        lines.append("ваш Spiv Anima Bot 🤖")
-        lines.append("")
-        lines.append("Самознищення через 3... 2... 1... 💥")
-    else:
-        lines.append("<i>Проєкт ANIMA · SPIV studio</i>")
+    lines.append("<i>Проєкт ANIMA · SPIV studio</i>")
 
     return "\n".join(lines)
 
@@ -234,11 +225,12 @@ def build_reminder(meeting_row, days_before):
     meet_type = "🏠 Внутрішня" if meeting_row["Type"] == "Внутрішня" else "🤝 Зовнішня"
     hints = get_hints(str(meeting_row["Activities"]))
 
+    time_str = " о 15:00" if meeting_row["Type"] == "Зовнішня" else ""
     lines = [
         f"⚠️ <b>{label}</b>", "",
         f"📍 <b>{h(meeting_row['Activities'])}</b>",
         f"{meet_type}",
-        f"📅 <code>{fmt_long(meeting_row['Start Date'])}</code>",
+        f"📅 <code>{fmt_long(meeting_row['Start Date'])}{time_str}</code>",
     ]
     if tags_str: lines.append(f"👤 {tags_str}")
     if hints:
@@ -268,6 +260,19 @@ def get_hints(activity):
 
 
 # ─── Scheduler Jobs ───────────────────────────────────────────────────────────
+
+async def send_farewell():
+    bot = Bot(token=BOT_TOKEN)
+    msg = (
+        "🎉 <b>Ми це зробили!</b>\n"
+        "Вітаю вас, моя реально-фізична команда SPIV 🙌\n\n"
+        "Був радий служити вам,\n"
+        "ваш Spiv Anima Bot 🤖\n\n"
+        "Самознищення через 3... 2... 1... 💥"
+    )
+    await bot.send_message(chat_id=CHAT_ID, message_thread_id=THREAD_ID, text=msg, parse_mode="HTML")
+    log.info("Farewell message sent")
+
 
 async def send_weekly_digest():
     bot = Bot(token=BOT_TOKEN)
@@ -344,6 +349,7 @@ async def main():
     scheduler.add_job(send_weekly_digest, "cron", day_of_week="mon", hour=9, minute=0)
     scheduler.add_job(send_meeting_reminders, "cron", hour=9, minute=5)
     scheduler.add_job(send_meeting_reminders, "cron", hour=10, minute=0)
+    scheduler.add_job(send_farewell, "date", run_date="2026-06-11 15:05:00")
     scheduler.start()
 
     app = Application.builder().token(BOT_TOKEN).build()
